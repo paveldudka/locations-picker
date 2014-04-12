@@ -1,0 +1,57 @@
+<RelativeLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        tools:context="com.trickyandroid.locationpicker.app.MainActivity">
+
+    <fragment
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:id="@+id/map"
+            android:name="com.google.android.gms.maps.MapFragment"/>
+    <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:layout_marginTop="?android:actionBarSize"
+            android:visibility="gone"/>
+
+    <RelativeLayout
+            android:id="@+id/viewPagerContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_alignParentBottom="true"
+            android:visibility="gone">
+        <View
+                android:layout_width="match_parent"
+                android:layout_height="12dip"
+                android:background="@drawable/shadow"
+                android:layout_above="@+id/viewPager"
+                />
+        <android.support.v4.view.ViewPager
+                android:id="@+id/viewPager"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/view_pager_height"
+                android:background="#CFFF"/>
+        <ProgressBar
+                android:id="@+id/viewPagerProgressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:indeterminate="true"
+                android:layout_centerInParent="true"
+                android:visibility="gone"/>
+
+    </RelativeLayout>
+
+    <FrameLayout
+            android:id="@+id/locationsListView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_marginTop="?android:actionBarSize"/>
+
+
+</RelativeLayout>
