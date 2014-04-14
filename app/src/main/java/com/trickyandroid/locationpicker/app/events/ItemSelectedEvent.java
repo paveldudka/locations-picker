@@ -5,13 +5,13 @@ import com.trickyandroid.locationpicker.app.geocoding.GeocodingResult;
 /**
  * Created by paveld on 4/11/14.
  */
-public class ListItemSelectedEvent {
+public class ItemSelectedEvent {
 
     private int position;
 
     private GeocodingResult item;
 
-    public ListItemSelectedEvent(int position, GeocodingResult item) {
+    public ItemSelectedEvent(int position, GeocodingResult item) {
         this.position = position;
         this.item = item;
     }

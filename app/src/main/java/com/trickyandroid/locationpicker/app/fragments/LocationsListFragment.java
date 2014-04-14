@@ -2,9 +2,12 @@ package com.trickyandroid.locationpicker.app.fragments;
 
 import com.trickyandroid.locationpicker.app.MainApplication;
 import com.trickyandroid.locationpicker.app.R;
+import com.trickyandroid.locationpicker.app.events.FragmentAnimationStartEvent;
 import com.trickyandroid.locationpicker.app.events.ListItemSelectedEvent;
 import com.trickyandroid.locationpicker.app.geocoding.GeocodingResult;
 
+import android.animation.Animator;
+import android.animation.AnimatorInflater;
 import android.app.ListFragment;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
@@ -41,6 +44,12 @@ public class LocationsListFragment extends ListFragment {
     }
 
     @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+            Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.locations_list_fragment, container, false);
+    }
+
+    @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
@@ -48,16 +57,21 @@ public class LocationsListFragment extends ListFragment {
             this.locations = Arrays
                     .asList((GeocodingResult[]) (getArguments().getParcelableArray(CONTENT_EXTRA)));
         }
+
+        //TODO: move to XML
         setListAdapter(new LocationsListAdapter(locations));
         getListView().setBackgroundColor(0xFFDEDEDE);
-        this.getListView().setDivider(new ColorDrawable(getResources().getColor(android.R.color.transparent)));
+        this.getListView().setDivider(
+                new ColorDrawable(getResources().getColor(android.R.color.transparent)));
         this.getListView().setScrollBarStyle(ListView.SCROLLBARS_OUTSIDE_OVERLAY);
-        this.getListView().setDividerHeight(getResources().getDimensionPixelSize(R.dimen.list_separator_height));
+        this.getListView().setDividerHeight(
+                getResources().getDimensionPixelSize(R.dimen.list_separator_height));
         this.getListView().setClipChildren(false);
         this.getListView().setDrawSelectorOnTop(true);
 
         TypedValue val = new TypedValue();
-        getActivity().getTheme().resolveAttribute(android.R.attr.selectableItemBackground, val, true);
+        getActivity().getTheme()
+                .resolveAttribute(android.R.attr.selectableItemBackground, val, true);
         this.getListView().setSelector(val.resourceId);
 
         int padding = getResources().getDimensionPixelSize(R.dimen.list_padding);
@@ -67,8 +81,16 @@ public class LocationsListFragment extends ListFragment {
     }
 
     @Override
+    public Animator onCreateAnimator(int transit, boolean enter, int nextAnim) {
+        int animResId = enter ? R.animator.slide_up : R.animator.slide_down;
+        MainApplication.getInstance().getBus().post(new FragmentAnimationStartEvent(this, enter));
+        return AnimatorInflater.loadAnimator(getActivity(), animResId);
+    }
+
+    @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
-        MainApplication.getInstance().getBus().post(new ListItemSelectedEvent(position));
+        MainApplication.getInstance().getBus()
+                .post(new ListItemSelectedEvent(position, locations.get(position)));
         getFragmentManager().popBackStack();
     }
 
@@ -120,10 +142,12 @@ public class LocationsListFragment extends ListFragment {
             return result;
         }
 
-        class ViewHolder
-        {
+        class ViewHolder {
+
             TextView title;
+
             TextView description;
+
             TextView distance;
         }
     }

@@ -9,34 +9,38 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 import com.squareup.otto.Subscribe;
+import com.trickyandroid.locationpicker.app.events.FragmentAnimationStartEvent;
+import com.trickyandroid.locationpicker.app.events.ItemSelectedEvent;
 import com.trickyandroid.locationpicker.app.events.ListItemSelectedEvent;
+import com.trickyandroid.locationpicker.app.events.StartProgressEvent;
 import com.trickyandroid.locationpicker.app.fragments.LocationsListFragment;
+import com.trickyandroid.locationpicker.app.fragments.LocationsSliderFragment;
 import com.trickyandroid.locationpicker.app.geocoding.GeocodingResult;
 
+import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.view.PagerAdapter;
-import android.support.v4.view.ViewPager;
 import android.text.TextUtils;
 import android.util.TypedValue;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
-import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.ProgressBar;
 import android.widget.SearchView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -47,29 +51,23 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class MainActivity extends Activity implements ViewPager.OnPageChangeListener,
+public class MainActivity extends Activity implements
         GoogleMap.OnMarkerClickListener, GoogleMap.OnMapLongClickListener,
-        GoogleMap.OnMarkerDragListener, GoogleMap.OnMapClickListener {
+        GoogleMap.OnMarkerDragListener, GoogleMap.OnMapClickListener{
 
     private static final String LOCATIONS_LIST_FRAGMENT_TAG = "locations_list_fragment";
 
-    private static final String CONTENT_EXTRA = "content_extra";
+    private static final String LOCATIONS_SLIDER_FRAGMENT_TAG = "locations_slider_fragment";
 
-    private static final String CURRENT_SELECTION_EXTRA = "current_selection_extra";
+    private static final String CONTENT_EXTRA = "content_extra";
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
 
     private ProgressBar progressBar;
 
-    private ProgressBar viewPagerProgressBar;
-
     private SearchView searchView;
 
     private Location lastKnownLocation;
-
-    private ViewPager viewPager;
-
-    private ViewGroup viewPagerContainer;
 
     private final float DEFAULT_ZOOM = 15;
 
@@ -87,23 +85,22 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
 
     private boolean animateToCurrentLocation = true;
 
+    private List<GeocodingResult> content = null;
+
+    private Drawable abBackgroundDrawable = null;
+
+    private static final int AB_BACKGROUND_OPACITY = 0xCC;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        this.abBackgroundDrawable = new ColorDrawable(
+                Color.argb(255, 255, 255, 255));
+        this.abBackgroundDrawable.setAlpha(AB_BACKGROUND_OPACITY);
+        this.abBackgroundDrawable.setCallback(this.drawableCallback);
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        viewPagerContainer = (ViewGroup) findViewById(R.id.viewPagerContainer);
-        viewPager = (ViewPager) findViewById(R.id.viewPager);
-        if (savedInstanceState != null && savedInstanceState.containsKey(CONTENT_EXTRA)) {
-            List<GeocodingResult> content = Arrays.asList((GeocodingResult[]) savedInstanceState
-                    .getParcelableArray(CONTENT_EXTRA));
-            viewPager.setAdapter(new ViewPagerAdapter(content));
-            viewPager.setCurrentItem(savedInstanceState.getInt(CURRENT_SELECTION_EXTRA), false);
-            viewPagerContainer.setVisibility(View.VISIBLE);
-            restoreState = true;
-        }
-
-        viewPager.setOnPageChangeListener(this);
 
         setUpMapIfNeeded();
 
@@ -111,8 +108,8 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         getActionBar().setDisplayHomeAsUpEnabled(true);
         getActionBar().setDisplayUseLogoEnabled(true);
         getActionBar().setCustomView(R.layout.ab_layout);
+        getActionBar().setBackgroundDrawable(abBackgroundDrawable);
 
-        this.viewPagerProgressBar = (ProgressBar) findViewById(R.id.viewPagerProgressBar);
         this.progressBar = (ProgressBar) findViewById(R.id.progressBar);
         this.progressBar.getViewTreeObserver()
                 .addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
@@ -128,6 +125,13 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
                     }
                 });
 
+        if (savedInstanceState != null && savedInstanceState.containsKey(CONTENT_EXTRA)) {
+            this.content = Arrays.asList((GeocodingResult[]) savedInstanceState
+                    .getParcelableArray(CONTENT_EXTRA));
+            restoreState = true;
+            animateToCurrentLocation = false;
+        }
+
         if (savedInstanceState == null && getResources().getConfiguration().orientation
                 == Configuration.ORIENTATION_PORTRAIT) {
             getWindow()
@@ -136,31 +140,18 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        MainApplication.getInstance().getBus().register(this);
-    }
+    protected void onSaveInstanceState(Bundle outState) {
+        if (this.content != null && !this.content.isEmpty()) {
+            outState.putParcelableArray(CONTENT_EXTRA,
+                    this.content.toArray(new GeocodingResult[this.content.size()]));
+        }
 
-    @Override
-    protected void onStop() {
-        super.onStop();
-        MainApplication.getInstance().getBus().unregister(this);
+        super.onSaveInstanceState(outState);
     }
 
     @Subscribe
-    public void answerAvailable(ListItemSelectedEvent event) {
-        this.viewPager.setCurrentItem(event.getPosition(), true);
-    }
-
-    @Override
-    public void onPageScrolled(int position, float positionOffset,
-            int positionOffsetPixels) {
-    }
-
-    @Override
-    public void onPageSelected(int position) {
-        LatLng latLng = ((ViewPagerAdapter) viewPager.getAdapter()).getLocation(position)
-                .getPosition();
+    public void itemSelected(ItemSelectedEvent event) {
+        LatLng latLng = event.getItem().getPosition();
 
         if (selectedLocationMarker == null) {
             MarkerOptions options = new MarkerOptions();
@@ -183,20 +174,19 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
     }
 
     @Override
-    public void onPageScrollStateChanged(int state) {
-
-    }
-
-    @Override
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
+        MainApplication.getInstance().getBus().register(this);
         if (restoreState) {
-            displayResultsOnMap(((ViewPagerAdapter) viewPager.getAdapter()).getContent());
-            onPageSelected(viewPager.getCurrentItem());
-            restoreState = false;
-            updateMapPadding();
+            displayResultsOnMap(content);
         }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        MainApplication.getInstance().getBus().unregister(this);
     }
 
     @Override
@@ -205,8 +195,8 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         searchView = (SearchView) getActionBar().getCustomView().findViewById(R.id.searchView);
         searchView.setOnQueryTextListener(new OnSearchViewQueryTextListener());
         showAsListMenuItem = menu.findItem(R.id.list_action_item);
-        if (viewPager.getAdapter() != null) {
-            showAsListMenuItem.setVisible(viewPager.getAdapter().getCount() > 1);
+        if (content != null && content.size() > 1) {
+            showAsListMenuItem.setVisible(true);
         }
         return super.onCreateOptionsMenu(menu);
     }
@@ -220,13 +210,17 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
             if (listFragmnet != null) {
                 getFragmentManager().popBackStack();
             } else {
-                getFragmentManager().beginTransaction().add(R.id.locationsListView,
+                this.searchView.clearFocus();
+                FragmentTransaction t = getFragmentManager().beginTransaction();
+                t.add(
+                        R.id.locationsListView,
                         LocationsListFragment
                                 .getInstance(
-                                        ((ViewPagerAdapter) viewPager.getAdapter()).getContent())
+                                        content)
                         , LOCATIONS_LIST_FRAGMENT_TAG
-                )
-                        .addToBackStack(null).commit();
+                );
+                t.addToBackStack(LOCATIONS_LIST_FRAGMENT_TAG);
+                t.commit();
             }
             return true;
         } else if (item.getItemId() == android.R.id.home) {
@@ -290,7 +284,9 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
     @Override
     public boolean onMarkerClick(Marker marker) {
         if (!TextUtils.isEmpty(marker.getSnippet())) {
-            viewPager.setCurrentItem(Integer.valueOf(marker.getSnippet()), true);
+            int pos = Integer.valueOf(marker.getSnippet());
+            MainApplication.getInstance().getBus()
+                    .post(new ListItemSelectedEvent(pos, content.get(pos)));
             return true;
         }
         return false;
@@ -302,14 +298,13 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         if (this.ongoingGeocodingTask != null) {
             this.ongoingGeocodingTask.cancel(true);
             this.ongoingGeocodingTask = null;
-            this.viewPagerProgressBar.setVisibility(View.GONE);
         }
         this.ongoingGeocodingTask = new GeocoderTask(this, lastKnownLocation);
         this.ongoingGeocodingTask.execute(query);
     }
 
     private void requestThroughGeocoder(LatLng position) {
-        this.viewPagerProgressBar.setVisibility(View.VISIBLE);
+        MainApplication.getInstance().getBus().post(new StartProgressEvent(true));
         if (this.ongoingGeocodingTask != null) {
             this.ongoingGeocodingTask.cancel(true);
             this.ongoingGeocodingTask = null;
@@ -321,20 +316,44 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
 
     private void updateResults(List<GeocodingResult> results) {
         this.progressBar.setVisibility(View.GONE);
-        this.viewPagerProgressBar.setVisibility(View.GONE);
+        MainApplication.getInstance().getBus().post(new StartProgressEvent(false));
+        this.content = results;
+        int size = 0;
+        if (results != null) {
+            size = results.size();
+        }
 
         if (results == null) {
             Toast.makeText(this, "Error :(", Toast.LENGTH_SHORT).show();
-
         } else if (results.isEmpty()) {
             Toast.makeText(this, "No results :(", Toast.LENGTH_SHORT).show();
-            showAsListMenuItem.setVisible(false);
-        } else {
-            showAsListMenuItem.setVisible(results.size() > 1);
         }
 
+        showAsListMenuItem.setVisible(size > 1);
+        updateLocationsSlider();
+
+        //TODO: move to separate fragment
         displayResultsOnMap(results);
-        updateViewPager(results);
+    }
+
+    private void updateLocationsSlider() {
+        LocationsSliderFragment fragment = (LocationsSliderFragment) getFragmentManager()
+                .findFragmentByTag(LOCATIONS_SLIDER_FRAGMENT_TAG);
+        if (content == null || content.isEmpty()) {
+            if (fragment != null) {
+                getFragmentManager().beginTransaction().remove(fragment).commit();
+            }
+        } else {
+            if (fragment != null) {
+                fragment.updateContent(content);
+            } else {
+                FragmentTransaction t = getFragmentManager().beginTransaction();
+                t.add(R.id.locationsSliderFragment,
+                        LocationsSliderFragment.getInstance(content),
+                        LOCATIONS_SLIDER_FRAGMENT_TAG);
+                t.commit();
+            }
+        }
     }
 
     private void displayResultsOnMap(List<GeocodingResult> locations) {
@@ -367,50 +386,42 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         }
     }
 
-    private void updateViewPager(List<GeocodingResult> locations) {
-        final boolean show = ((locations != null) && (!locations.isEmpty()));
-        this.viewPager.setAdapter(new ViewPagerAdapter(locations));
-        animateViewPager(show);
-        if (show) {
-            onPageSelected(0);
-        }
-        updateMapPadding();
-    }
-
-    private void animateViewPager(final boolean show) {
-        final int visibility = (show ? View.VISIBLE : View.GONE);
-        if (visibility == viewPagerContainer.getVisibility()) {
-            return;
-        }
-        if (show) {
-            this.viewPagerContainer.setVisibility(View.VISIBLE);
-            this.viewPagerContainer.getViewTreeObserver()
-                    .addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-                        @Override
-                        public boolean onPreDraw() {
-                            viewPagerContainer.getViewTreeObserver().removeOnPreDrawListener(this);
-                            viewPagerContainer.setTranslationY(viewPagerContainer.getHeight());
-                            viewPagerContainer.setAlpha(0);
-                            viewPagerContainer.animate().translationY(0).alpha(1)
-                                    .setInterpolator(new AccelerateDecelerateInterpolator())
-                                    .setDuration(200).start();
-                            return true;
-                        }
-                    });
-        } else {
-            viewPagerContainer.setVisibility(View.GONE);
-        }
-    }
-
     /**
      * Remove previous results from the map and hide view pager
      */
     private void clearScreen() {
+        content = null;
         removeResultMarkers();
         removeSelectedMarker();
-        updateViewPager(null);
+        updateLocationsSlider();
         if (getFragmentManager().getBackStackEntryCount() > 0) {
             getFragmentManager().popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        }
+    }
+
+    @Override
+    public void onAttachFragment(Fragment fragment) {
+        super.onAttachFragment(fragment);
+        updateMapPadding();
+
+        if (fragment.getTag() != null && fragment.getTag().equals(LOCATIONS_LIST_FRAGMENT_TAG)) {
+            int alpha = 0xFF;
+            ObjectAnimator animator = ObjectAnimator
+                    .ofInt(abBackgroundDrawable, "alpha", alpha);
+            animator.setDuration(300);
+            animator.start();
+        }
+    }
+
+    @Subscribe
+    public void onFragmentAnimationStart(FragmentAnimationStartEvent event) {
+        if (event.getFragment().getTag() != null && event.getFragment().getTag()
+                .equals(LOCATIONS_LIST_FRAGMENT_TAG)) {
+            int alpha = event.isEnter() ? 0xFF : AB_BACKGROUND_OPACITY;
+            ObjectAnimator animator = ObjectAnimator
+                    .ofInt(abBackgroundDrawable, "alpha", alpha);
+            animator.setDuration(300);
+            animator.start();
         }
     }
 
@@ -419,12 +430,17 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         int t = 0;
         int r = 0;
         int b = 0;
+        if (mMap == null) {
+            return;
+        }
         TypedValue val = new TypedValue();
         getTheme().resolveAttribute(android.R.attr.actionBarSize, val, true);
         t = TypedValue.complexToDimensionPixelSize(val.data,
                 getResources().getDisplayMetrics());
 
-        if (viewPagerContainer.getVisibility() == View.VISIBLE) {
+        Fragment sliderFragment = getFragmentManager()
+                .findFragmentByTag(LOCATIONS_SLIDER_FRAGMENT_TAG);
+        if (sliderFragment != null && sliderFragment.isAdded()) {
             b = (int) getResources().getDimension(R.dimen.view_pager_height);
         }
         mMap.setPadding(l, t, r, b);
@@ -443,7 +459,6 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         }
         this.searchView.clearFocus();
         removeResultMarkers();
-        this.viewPager.setAdapter(new ViewPagerAdapter(null));
         requestThroughGeocoder(latLng);
     }
 
@@ -462,7 +477,6 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         if (marker.equals(selectedLocationMarker)) {
             this.searchView.clearFocus();
             removeResultMarkers();
-            this.viewPager.setAdapter(new ViewPagerAdapter(null));
             requestThroughGeocoder(marker.getPosition());
         }
     }
@@ -486,75 +500,6 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
         public boolean onQueryTextChange(String newText) {
             return false;
         }
-    }
-
-    private class ViewPagerAdapter extends PagerAdapter {
-
-        private List<GeocodingResult> locations;
-
-        public ViewPagerAdapter(List<GeocodingResult> locations) {
-            this.locations = locations;
-        }
-
-        @Override
-        public int getCount() {
-            if (locations == null) {
-                return 0;
-            }
-            return locations.size();
-        }
-
-        public List<GeocodingResult> getContent() {
-            return this.locations;
-        }
-
-        @Override
-        public boolean isViewFromObject(View view, Object object) {
-            return view == object;
-        }
-
-        @Override
-        public Object instantiateItem(ViewGroup container, int position) {
-            View result = LayoutInflater.from(container.getContext())
-                    .inflate(R.layout.sliding_item_layout, container, false);
-            ((TextView) result.findViewById(R.id.title))
-                    .setText(locations.get(position).getTitle());
-            ((TextView) result.findViewById(R.id.description))
-                    .setText(locations.get(position).getDescription());
-            container.addView(result);
-            result.findViewById(R.id.saveImg).setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Toast.makeText(v.getContext(), "Congratulations! You just saved this place!",
-                            Toast.LENGTH_LONG).show();
-                }
-            });
-            return result;
-        }
-
-        @Override
-        public void destroyItem(ViewGroup container, int position, Object object) {
-            container.removeView((View) object);
-        }
-
-        public GeocodingResult getLocation(int position) {
-            return locations.get(position);
-        }
-    }
-
-    @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        if (viewPager != null && viewPager.getAdapter() != null
-                && viewPager.getAdapter().getCount() > 0) {
-            List<GeocodingResult> content = ((ViewPagerAdapter) viewPager.getAdapter())
-                    .getContent();
-            if (content != null) {
-                outState.putParcelableArray(CONTENT_EXTRA,
-                        content.toArray(new GeocodingResult[content.size()]));
-                outState.putInt(CURRENT_SELECTION_EXTRA, viewPager.getCurrentItem());
-            }
-        }
-        super.onSaveInstanceState(outState);
     }
 
     private static class GeocoderTask extends AsyncTask<Object, Void, List<GeocodingResult>> {
@@ -643,4 +588,21 @@ public class MainActivity extends Activity implements ViewPager.OnPageChangeList
             }
         }
     }
+
+    private Drawable.Callback drawableCallback = new Drawable.Callback() {
+        @Override
+        public void invalidateDrawable(Drawable who) {
+            getActionBar().setBackgroundDrawable(who);
+        }
+
+        @Override
+        public void scheduleDrawable(Drawable who, Runnable what, long when) {
+
+        }
+
+        @Override
+        public void unscheduleDrawable(Drawable who, Runnable what) {
+
+        }
+    };
 }

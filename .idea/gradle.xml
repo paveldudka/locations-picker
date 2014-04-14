@@ -8,8 +8,6 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/SlidingTabsAppBar" />
-            <option value="$PROJECT_DIR$/SlidingTabsBasic" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>
