@@ -324,14 +324,11 @@ public class MainActivity extends Activity implements
         MainApplication.getInstance().getBus().post(new StartProgressEvent(false));
         this.content = results;
         int size = 0;
-        if (results != null) {
-            size = results.size();
-        }
 
-        if (results == null) {
-            Toast.makeText(this, "Error :(", Toast.LENGTH_SHORT).show();
-        } else if (results.isEmpty()) {
+        if (results == null || results.isEmpty()) {
             Toast.makeText(this, "No results :(", Toast.LENGTH_SHORT).show();
+        } else {
+            size = results.size();
         }
 
         showAsListMenuItem.setVisible(size > 1);

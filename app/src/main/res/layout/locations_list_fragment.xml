@@ -2,11 +2,22 @@
 
 <com.trickyandroid.locationpicker.app.view.SlidingRelativeLayout
         xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
     <ListView
             android:id="@android:id/list"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent"
+            android:background="@color/locations_list_background"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="@dimen/list_separator_height"
+            android:scrollbarStyle="outsideOverlay"
+            android:drawSelectorOnTop="true"
+            android:listSelector="?android:selectableItemBackground"
+            android:padding="@dimen/list_padding"
+            android:clipChildren="false"
+            android:clipToPadding="true"
+            tools:listitem="@layout/list_item_layout"/>
 
 </com.trickyandroid.locationpicker.app.view.SlidingRelativeLayout>

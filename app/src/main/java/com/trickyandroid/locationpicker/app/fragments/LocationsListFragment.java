@@ -9,9 +9,7 @@ import com.trickyandroid.locationpicker.app.geocoding.GeocodingResult;
 import android.animation.Animator;
 import android.animation.AnimatorInflater;
 import android.app.ListFragment;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -58,25 +56,7 @@ public class LocationsListFragment extends ListFragment {
                     .asList((GeocodingResult[]) (getArguments().getParcelableArray(CONTENT_EXTRA)));
         }
 
-        //TODO: move to XML
         setListAdapter(new LocationsListAdapter(locations));
-        getListView().setBackgroundColor(0xFFDEDEDE);
-        this.getListView().setDivider(
-                new ColorDrawable(getResources().getColor(android.R.color.transparent)));
-        this.getListView().setScrollBarStyle(ListView.SCROLLBARS_OUTSIDE_OVERLAY);
-        this.getListView().setDividerHeight(
-                getResources().getDimensionPixelSize(R.dimen.list_separator_height));
-        this.getListView().setClipChildren(false);
-        this.getListView().setDrawSelectorOnTop(true);
-
-        TypedValue val = new TypedValue();
-        getActivity().getTheme()
-                .resolveAttribute(android.R.attr.selectableItemBackground, val, true);
-        this.getListView().setSelector(val.resourceId);
-
-        int padding = getResources().getDimensionPixelSize(R.dimen.list_padding);
-        this.getListView().setPadding(padding, padding, padding, padding);
-        this.getListView().setClipToPadding(false);
         this.getListView().requestFocus();
     }
 
