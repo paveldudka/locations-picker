@@ -30,6 +30,7 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.TypedValue;
@@ -53,7 +54,7 @@ import java.util.Locale;
 
 public class MainActivity extends Activity implements
         GoogleMap.OnMarkerClickListener, GoogleMap.OnMapLongClickListener,
-        GoogleMap.OnMarkerDragListener, GoogleMap.OnMapClickListener{
+        GoogleMap.OnMarkerDragListener, GoogleMap.OnMapClickListener {
 
     private static final String LOCATIONS_LIST_FRAGMENT_TAG = "locations_list_fragment";
 
@@ -97,7 +98,11 @@ public class MainActivity extends Activity implements
         this.abBackgroundDrawable = new ColorDrawable(
                 Color.argb(255, 255, 255, 255));
         this.abBackgroundDrawable.setAlpha(AB_BACKGROUND_OPACITY);
-        this.abBackgroundDrawable.setCallback(this.drawableCallback);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            this.abBackgroundDrawable.setCallback(this.drawableCallback);
+        } else {
+            getActionBar().setBackgroundDrawable(abBackgroundDrawable);
+        }
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
