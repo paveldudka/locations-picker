@@ -17,7 +17,7 @@
             android:listSelector="?android:selectableItemBackground"
             android:padding="@dimen/list_padding"
             android:clipChildren="false"
-            android:clipToPadding="true"
+            android:clipToPadding="false"
             tools:listitem="@layout/list_item_layout"/>
 
 </com.trickyandroid.locationpicker.app.view.SlidingRelativeLayout>
